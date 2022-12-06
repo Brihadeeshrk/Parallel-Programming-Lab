@@ -1,71 +1,103 @@
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <omp.h>
 
-#define MAX_SIZE 10000
+#define SIZE 100000
 
-void generate_list(int *x, int n)
+int *list_gen(int n)
 {
-    int i;
-    for (i = 0; i < n; i++)
-        x[i] = rand() % n;
+    int *list = malloc(sizeof(int) * n);
+    for (int i = 0; i < n; ++i)
+        list[i] = rand() % n;
+    return list;
 }
-void merge(int *X, int n, int *tmp)
+
+void list_show(int *list, int n)
 {
-    int i = 0;
-    int j = n / 2;
-    int ti = 0;
-    while (i < n / 2 && j < n)
+    for (int i = 0; i < n; ++i)
+        printf("%d\n", list[i]);
+}
+
+void merge(int *list, int *left, int m, int *right, int n)
+{
+    int p = 0, lp = 0, rp = 0;
+
+    while (lp < m && rp < n)
     {
-        if (X[i] < X[j])
-        {
-            tmp[ti] = X[i];
-            ti++;
-            i++;
-        }
+        if (left[lp] < right[rp])
+            list[p++] = left[lp++];
         else
-        {
-            tmp[ti] = X[j];
-            ti++;
-            j++;
-        }
+            list[p++] = right[rp++];
     }
-    while (i < n / 2)
-    {
-        tmp[ti] = X[i];
-        ti++;
-        i++;
-    }
-    while (j < n)
-    {
-        tmp[ti] = X[j];
-        ti++;
-        j++;
-    }
-    memcpy(X, tmp, n * sizeof(int));
+    while (lp < m)
+        list[p++] = left[lp++];
+    while (rp < n)
+        list[p++] = right[rp++];
 }
-void mergesort(int *X, int n, int *tmp)
+
+void merge_sort(int *list, int n)
 {
     if (n < 2)
         return;
-#pragma omp task firstprivate(X, n, tmp) mergesort(X, n / 2, tmp);
-#pragma omp task firstprivate(X, n, tmp) mergesort(X + (n / 2), n - (n / 2), tmp);
-#pragma omp taskwait
-    merge(X, n, tmp);
+
+    int mid = (n - 1) / 2;
+    int *left = malloc(sizeof(int) * (mid + 1));
+    int *right = malloc(sizeof(int) * (n - 1 - mid));
+    memcpy(left, list, sizeof(int) * (mid + 1));
+    memcpy(right, &list[mid + 1], sizeof(int) * (n - 1 - mid));
+
+    merge_sort(left, mid + 1);
+    merge_sort(right, n - mid - 1);
+
+    merge(list, left, mid + 1, right, n - mid - 1);
+
+    free(left);
+    free(right);
 }
-int main()
+
+void merge_sort_parallel(int *list, int n)
 {
-    int n = MAX_SIZE;
+    if (n < 2)
+        return;
+
+    int mid = (n - 1) / 2;
+    int *left = malloc(sizeof(int) * (mid + 1));
+    int *right = malloc(sizeof(int) * (n - 1 - mid));
+    memcpy(left, list, sizeof(int) * (mid + 1));
+    memcpy(right, &list[mid + 1], sizeof(int) * (n - 1 - mid));
+
+#pragma omp task
+    merge_sort(left, mid + 1);
+
+#pragma omp task
+    merge_sort(right, n - mid - 1);
+
+#pragma omp taskwait
+    merge(list, left, mid + 1, right, n - mid - 1);
+
+    free(left);
+    free(right);
+}
+
+int main(int argc, char *argv[])
+{
     double start, stop;
-    int data[MAX_SIZE], tmp[MAX_SIZE];
-    generate_list(data, n);
+    int *list = list_gen(SIZE);
+    int *parallel_list = malloc(sizeof(int) * SIZE);
+    memcpy(parallel_list, list, sizeof(int) * SIZE);
+
     start = omp_get_wtime();
-#pragma omp parallel
-    {
-#pragma omp single
-        mergesort(data, n, tmp);
-    }
+    merge_sort(list, SIZE);
     stop = omp_get_wtime();
-    printf("Time: %g\n", stop - start);
+    printf("Serial time: %f\n", stop - start);
+
+    start = omp_get_wtime();
+    merge_sort_parallel(parallel_list, SIZE);
+    stop = omp_get_wtime();
+    printf("Parallel time: %f\n", stop - start);
+
+    // list_show(list, SIZE);
+
+    return 0;
 }
