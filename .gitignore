@@ -1,4 +1,4 @@
 # mac stupid files
 .DS_Store
-vscode/
-pdfs/
+.vscode/
+.pdfs/
