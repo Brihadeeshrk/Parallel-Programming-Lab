@@ -10,11 +10,6 @@ int main(int argc, char **argv)
     int world_size;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Request request1, request2;
-    if (world_size < 2)
-    {
-        fprintf(stderr, "World size must be greater than 1 for %s\n", argv[0]);
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
     char message[100];
     int len;
     strcpy(message, "Hello, World!");
