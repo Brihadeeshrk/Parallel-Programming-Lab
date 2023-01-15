@@ -1,25 +1,19 @@
 #include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
-#define NUM_THREADS 4
-static long num_steps = 1000000;
-double step;
+#define N 1000000
 void main()
 {
+    double factor = 1.0, sum = 0.0;
     int i;
-    double x, pi, sum[NUM_THREADS];
-    step = 1.0 / (double)num_steps;
-#pragma omp parallel private(i, x)
+#pragma omp parallel for reduction(+ \
+                                   : sum) // private(factor)
+    for (int i = 0; i < N; i++)
     {
-        int id = omp_get_thread_num();
-        for (i = id, sum[id] = 0.0; i < num_steps; i = i + NUM_THREADS)
-        {
-            x = (i + 0.5) * step;
-            sum[id] += 4.0 / (1.0 + x * x);
-        }
+        factor = (i % 2 == 0) ? 1 : -1;
+        sum += factor / (2 * i + 1);
     }
-    for (i = 1; i < NUM_THREADS; i++)
-        sum[0] += sum[i];
-    pi = sum[0] / num_steps;
-    printf("pi = %1.12f\n", pi);
+    double pi;
+    pi = 4 * sum;
+    printf("pi= %1.18f", pi);
 }
